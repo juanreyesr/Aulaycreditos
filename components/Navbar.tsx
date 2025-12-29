@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { isAdminFromMetadata } from "@/lib/auth/admin";
+import { isAdminFromEnv, isAdminFromMetadata } from "@/lib/auth/admin";
 
 export default function Navbar() {
   const supabase = createClient();
@@ -18,7 +18,7 @@ export default function Navbar() {
       if (!active) return;
       setEmail(user?.email ?? null);
       if (user) {
-        if (isAdminFromMetadata(user)) {
+        if (isAdminFromEnv(user.email) || isAdminFromMetadata(user)) {
           setIsAdmin(true);
         } else {
           const { data: perfil } = await supabase
@@ -36,7 +36,7 @@ export default function Navbar() {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setEmail(session?.user?.email ?? null);
       if (session?.user?.id) {
-        if (isAdminFromMetadata(session.user)) {
+        if (isAdminFromEnv(session.user.email) || isAdminFromMetadata(session.user)) {
           setIsAdmin(true);
         } else {
           const { data: perfil } = await supabase

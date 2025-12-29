@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
-function isAdminFromEnv(email: string | null | undefined) {
+export function isAdminFromEnv(email: string | null | undefined) {
   const envList =
     process.env.SUPER_ADMIN_EMAILS || process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "";
   const cleaned = envList
@@ -26,8 +26,18 @@ export async function resolveIsAdmin(
 ) {
   if (!user) return false;
 
-  if (isAdminFromEnv(user.email)) return true;
-  if (isAdminFromMetadata(user)) return true;
+  if (isAdminFromEnv(user.email)) {
+    await supabase
+      .from("perfiles")
+      .upsert({ user_id: user.id, is_admin: true }, { onConflict: "user_id" });
+    return true;
+  }
+  if (isAdminFromMetadata(user)) {
+    await supabase
+      .from("perfiles")
+      .upsert({ user_id: user.id, is_admin: true }, { onConflict: "user_id" });
+    return true;
+  }
 
   const { data: perfil } = await supabase
     .from("perfiles")

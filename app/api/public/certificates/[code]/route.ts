@@ -1,5 +1,5 @@
 import React from "react";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
   Document,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Image,
   renderToStream,
+  type DocumentProps,
 } from "@react-pdf/renderer";
 import { formatDuration } from "@/lib/utils";
 
@@ -72,7 +73,7 @@ function CertificateDoc(props: {
   authorities?: Authority[] | null;
   logoUrl?: string | null;
   watermarkUrl?: string | null;
-}): React.ReactElement {
+}): React.ReactElement<DocumentProps> {
   const e = React.createElement;
 
   const authorityBlocks =
@@ -142,11 +143,15 @@ function CertificateDoc(props: {
   );
 }
 
-export async function GET(_req: Request, ctx: { params: { code: string } }) {
-  const supabase = createClient();
+export async function GET(
+  _req: NextRequest,
+  context: { params: Promise<{ code: string }> }
+) {
+  const supabase = await createClient();
 
   // RPC security definer: devuelve un registro con settings_snapshot (sin exponer tablas)
-  const { data, error } = await supabase.rpc("get_certificate_pdf", { p_code: ctx.params.code });
+  const { code } = await context.params;
+  const { data, error } = await supabase.rpc("get_certificate_pdf", { p_code: code });
   const row = (!error && data) ? (Array.isArray(data) ? data[0] : data) : null;
   if (!row?.verify_code) return NextResponse.json({ error: "Certificado no válido." }, { status: 404 });
 
@@ -199,7 +204,7 @@ export async function GET(_req: Request, ctx: { params: { code: string } }) {
 
   const headers = new Headers();
   headers.set("Content-Type", "application/pdf");
-  headers.set("Content-Disposition", `inline; filename="certificado-cpg-${ctx.params.code}.pdf"`);
+  headers.set("Content-Disposition", `inline; filename="certificado-cpg-${code}.pdf"`);
 
   // @ts-ignore
   return new NextResponse(stream as any, { headers });

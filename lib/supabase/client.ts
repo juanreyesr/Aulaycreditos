@@ -5,6 +5,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321";
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     "public-anon-key";
 
   return createBrowserClient(supabaseUrl, supabaseKey);

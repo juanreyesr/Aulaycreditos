@@ -11,7 +11,8 @@ export default function Hero() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm md:text-base text-white/70">
           Explora videos por categoría, revisa los recién añadidos y realiza evaluaciones autocorregibles.
-          Al aprobar con 80% o más, descarga tu certificado con horas certificadas según la duración del video.
+          Al aprobar con 80% o más, descarga tu certificado con horas certificadas según la duración del video y consulta tus
+          Créditos Académicos en el mismo dominio.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -20,6 +21,12 @@ export default function Hero() {
           </Link>
           <Link href="/login" className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-sm">
             Iniciar sesión
+          </Link>
+          <Link
+            href="/creditos"
+            className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 text-sm"
+          >
+            Ir a Créditos Académicos
           </Link>
         </div>
       </div>

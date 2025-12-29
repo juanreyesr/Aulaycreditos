@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { iso8601DurationToSeconds } from "@/lib/utils";
+import { resolveIsAdmin } from "@/lib/auth/admin";
 
 export const runtime = "nodejs";
 
@@ -22,12 +23,8 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
   // Only admins should refresh durations (enforced by RLS by updating only as admin).
-  const { data: perfil } = await supabase
-    .from("perfiles")
-    .select("is_admin")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!perfil?.is_admin) return NextResponse.json({ error: "Solo administradores." }, { status: 403 });
+  const isAdmin = await resolveIsAdmin(supabase, user);
+  if (!isAdmin) return NextResponse.json({ error: "Solo administradores." }, { status: 403 });
 
   const yt = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${encodeURIComponent(videoId)}&key=${encodeURIComponent(apiKey)}`);
   const payload = await yt.json();

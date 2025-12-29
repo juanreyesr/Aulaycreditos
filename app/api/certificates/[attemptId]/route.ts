@@ -12,6 +12,7 @@ import {
   type DocumentProps,
 } from "@react-pdf/renderer";
 import { formatDuration } from "@/lib/utils";
+import { resolveIsAdmin } from "@/lib/auth/admin";
 
 export const runtime = "nodejs";
 
@@ -166,12 +167,8 @@ export async function GET(
 
   // dueño o admin
   if (attempt.user_id !== user.id) {
-    const { data: perfil } = await supabase
-      .from("perfiles")
-      .select("is_admin")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (!perfil?.is_admin) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+    const isAdmin = await resolveIsAdmin(supabase, user);
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
 
   const { data: course } = await supabase

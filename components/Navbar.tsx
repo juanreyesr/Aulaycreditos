@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isAdminFromMetadata } from "@/lib/auth/admin";
 
 export default function Navbar() {
   const supabase = createClient();
@@ -17,12 +18,16 @@ export default function Navbar() {
       if (!active) return;
       setEmail(user?.email ?? null);
       if (user) {
-        const { data: perfil } = await supabase
-          .from("perfiles")
-          .select("is_admin")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        setIsAdmin(!!perfil?.is_admin);
+        if (isAdminFromMetadata(user)) {
+          setIsAdmin(true);
+        } else {
+          const { data: perfil } = await supabase
+            .from("perfiles")
+            .select("is_admin")
+            .eq("user_id", user.id)
+            .maybeSingle();
+          setIsAdmin(!!perfil?.is_admin);
+        }
       } else {
         setIsAdmin(false);
       }
@@ -31,12 +36,16 @@ export default function Navbar() {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setEmail(session?.user?.email ?? null);
       if (session?.user?.id) {
-        const { data: perfil } = await supabase
-          .from("perfiles")
-          .select("is_admin")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
-        setIsAdmin(!!perfil?.is_admin);
+        if (isAdminFromMetadata(session.user)) {
+          setIsAdmin(true);
+        } else {
+          const { data: perfil } = await supabase
+            .from("perfiles")
+            .select("is_admin")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+          setIsAdmin(!!perfil?.is_admin);
+        }
       } else {
         setIsAdmin(false);
       }

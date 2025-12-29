@@ -4,6 +4,23 @@ import { createClient } from "@/lib/supabase/server";
 
 type Category = { id: string; name: string; slug: string | null };
 
+const sampleCategory: Category = {
+  id: "sample-category-psicologia-clinica",
+  name: "Psicología Clínica",
+  slug: "psicologia-clinica",
+};
+
+const sampleCourse: CourseCard & { category_id: string } = {
+  id: "sample-course-primeros-auxilios",
+  category_id: sampleCategory.id,
+  title: "Intervención en crisis y primeros auxilios psicológicos",
+  description:
+    "Video introductorio con pasos prácticos para responder ante emergencias emocionales y otorgar contención segura.",
+  cover_image_url:
+    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80",
+  duration_seconds: 900,
+};
+
 export default async function HomePage() {
   const supabase = await createClient();
 
@@ -20,6 +37,14 @@ export default async function HomePage() {
 
   const cats = (categories ?? []) as Category[];
   const allCourses = (courses ?? []) as any[];
+
+  if (!cats.length) {
+    cats.push(sampleCategory);
+  }
+
+  if (!allCourses.length) {
+    allCourses.push(sampleCourse);
+  }
 
   const recent = allCourses.slice(0, 12).map((c) => ({
     id: c.id,

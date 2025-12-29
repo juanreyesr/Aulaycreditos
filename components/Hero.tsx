@@ -28,6 +28,12 @@ export default function Hero() {
           >
             Ir a Créditos Académicos
           </Link>
+          <Link
+            href="/admin"
+            className="px-4 py-2 rounded-full bg-gradient-to-r from-cpgRed to-[#ff6b6b] hover:opacity-90 shadow-lg shadow-cpgRed/20 text-sm"
+          >
+            Acceso administrador
+          </Link>
         </div>
       </div>
     </section>

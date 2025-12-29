@@ -77,6 +77,15 @@ export default function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="text-xs px-3 py-2 rounded-full bg-gradient-to-r from-cpgRed to-[#ff6b6b] hover:opacity-90 shadow-lg shadow-cpgRed/20"
+            >
+              Acceso administrador
+            </Link>
+          )}
+
           {email ? (
             <>
               <span className="text-xs text-white/70 hidden md:block">{email}</span>

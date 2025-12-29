@@ -391,3 +391,87 @@ as $$
 $$;
 
 grant execute on function public.get_certificate_pdf(text) to anon, authenticated;
+
+-- 10) Datos de muestra para Aula Virtual
+-- Estos datos permiten ver contenido al desplegar sin cargas manuales.
+insert into public.categories (id, name, slug, sort_order)
+values (
+  '11111111-1111-1111-1111-111111111111',
+  'Psicología Clínica',
+  'psicologia-clinica',
+  1
+)
+on conflict (slug) do update set
+  name = excluded.name,
+  sort_order = excluded.sort_order;
+
+insert into public.courses (
+  id,
+  category_id,
+  title,
+  description,
+  youtube_url,
+  youtube_video_id,
+  cover_image_url,
+  duration_seconds,
+  published
+)
+values (
+  '22222222-2222-2222-2222-222222222222',
+  '11111111-1111-1111-1111-111111111111',
+  'Intervención en crisis y primeros auxilios psicológicos',
+  'Video introductorio con pasos prácticos para responder ante emergencias emocionales.',
+  'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  'dQw4w9WgXcQ',
+  'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=1200&q=80',
+  900,
+  true
+)
+on conflict (id) do update set
+  category_id = excluded.category_id,
+  title = excluded.title,
+  description = excluded.description,
+  youtube_url = excluded.youtube_url,
+  youtube_video_id = excluded.youtube_video_id,
+  cover_image_url = excluded.cover_image_url,
+  duration_seconds = excluded.duration_seconds,
+  published = excluded.published;
+
+insert into public.quizzes (id, course_id, is_enabled, pass_percent)
+values (
+  '33333333-3333-3333-3333-333333333333',
+  '22222222-2222-2222-2222-222222222222',
+  true,
+  80
+)
+on conflict (course_id) do update set
+  is_enabled = excluded.is_enabled,
+  pass_percent = excluded.pass_percent;
+
+insert into public.quiz_questions (
+  id,
+  quiz_id,
+  sort_order,
+  question,
+  option_a,
+  option_b,
+  option_c,
+  correct_option
+)
+values (
+  '44444444-4444-4444-4444-444444444444',
+  '33333333-3333-3333-3333-333333333333',
+  1,
+  '¿Cuál es el primer paso al brindar primeros auxilios psicológicos?',
+  'Evaluar la seguridad y estabilizar la escena',
+  'Ofrecer soluciones inmediatas al problema',
+  'Solicitar antecedentes clínicos completos',
+  'A'
+)
+on conflict (id) do update set
+  question = excluded.question,
+  option_a = excluded.option_a,
+  option_b = excluded.option_b,
+  option_c = excluded.option_c,
+  correct_option = excluded.correct_option,
+  sort_order = excluded.sort_order;

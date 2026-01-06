@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const REQUEST_TIMEOUT_MS = 15000;
+
 export default function AuthForm() {
   const supabase = createClient();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -11,23 +13,46 @@ export default function AuthForm() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  function toErrorMessage(err: any) {
+    const base = err?.message ?? "No se pudo completar la acción.";
+    const extra = [err?.details, err?.hint, err?.code].filter(Boolean).join(" | ");
+    return extra ? `${base} (${extra})` : base;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     setLoading(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+
     try {
+
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { signal: ctrl.signal },
+        } as any);
         if (error) throw error;
         window.location.href = "/";
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { signal: ctrl.signal },
+        } as any);
         if (error) throw error;
         setMsg("Cuenta creada. Revisa tu correo si tu proyecto requiere confirmación de email.");
       }
     } catch (err: any) {
-      setMsg(err?.message ?? "No se pudo completar la acción.");
+      if (err?.name === "AbortError") {
+        setMsg("No hay respuesta del servidor. Intenta nuevamente o verifica tu conexión.");
+        return;
+      }
+      setMsg(toErrorMessage(err));
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }

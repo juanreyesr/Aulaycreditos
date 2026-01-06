@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
 import { extractYouTubeVideoId, formatDuration } from "@/lib/utils";
+import { DEFAULT_CATEGORIES as DEFAULT_CATEGORIES_LIST, slugify } from "@/lib/categories";
 
 type Category = { id: string; name: string; slug: string | null; sort_order: number | null };
 type Course = {
@@ -48,19 +49,6 @@ const CategorySchema = z.object({
   ),
 });
 
-function slugify(input: string) {
-  // Slug seguro para español: quita acentos, deja alfanumérico y guiones.
-  return input
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 const normalizeUrlOrUndefined = (v: unknown) => {
   if (typeof v !== "string") return v;
   const t = v.trim();
@@ -98,17 +86,7 @@ const CourseSchema = z.object({
 export default function AdminPanel() {
   const supabase = createClient();
 
-  const DEFAULT_CATEGORIES = useMemo(
-    () => [
-      "Psicología clínica",
-      "Neurocientífico",
-      "Educativa",
-      "Deportiva",
-      "Psicología social",
-      "Psicometría",
-    ],
-    []
-  );
+  const DEFAULT_CATEGORIES = useMemo(() => [...DEFAULT_CATEGORIES_LIST], []);
 
   const [tab, setTab] = useState<"categories" | "courses" | "quizzes" | "certificates" | "security">("courses");
 

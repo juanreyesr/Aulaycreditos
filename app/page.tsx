@@ -1,11 +1,19 @@
 import Hero from "@/components/Hero";
 import Row, { type CourseCard } from "@/components/Row";
 import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_CATEGORIES, slugify } from "@/lib/categories";
+import { seedDefaultCategories } from "@/lib/seedDefaultCategories";
 
 type Category = { id: string; name: string; slug: string | null };
 
 export default async function HomePage() {
   const supabase = createClient();
+
+  try {
+    await seedDefaultCategories();
+  } catch (e) {
+    console.error("No se pudieron sembrar categorías predeterminadas en la portada:", e);
+  }
 
   const { data: categories } = await supabase
     .from("categories")
@@ -19,6 +27,14 @@ export default async function HomePage() {
     .order("created_at", { ascending: false });
 
   const cats = (categories ?? []) as Category[];
+  const hasDbCategories = cats.length > 0;
+  const displayCats = hasDbCategories
+    ? cats
+    : DEFAULT_CATEGORIES.map((name, idx) => ({
+        id: `default-${idx}`,
+        name,
+        slug: slugify(name),
+      }));
   const allCourses = (courses ?? []) as any[];
 
   const recent = allCourses.slice(0, 12).map((c) => ({
@@ -51,7 +67,7 @@ export default async function HomePage() {
         <Row title="Recién añadidos" courses={recent} />
       </div>
 
-      {cats.map((cat) => (
+      {displayCats.map((cat) => (
         <Row
           key={cat.id}
           title={cat.name}

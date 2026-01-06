@@ -1,32 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const REQUEST_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label = "Operación") {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label}: sin respuesta tras ${ms / 1000}s.`)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export default function AuthForm() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  function toErrorMessage(err: any) {
+    const base = err?.message ?? "No se pudo completar la acción.";
+    if (base === "Failed to fetch") {
+      return "No se pudo contactar Supabase. Verifica NEXT_PUBLIC_SUPABASE_URL (usa https) y que no haya bloqueos de red.";
+    }
+    const extra = [err?.details, err?.hint, err?.code].filter(Boolean).join(" | ");
+    return extra ? `${base} (${extra})` : base;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     setLoading(true);
+
     try {
+
+      const authPromise =
+        mode === "signin"
+          ? supabase.auth.signInWithPassword({ email, password })
+          : supabase.auth.signUp({ email, password });
+
+      const { error } = await withTimeout(authPromise as any, REQUEST_TIMEOUT_MS, "Autenticación");
+      if (error) throw error;
+
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
         window.location.href = "/";
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
         setMsg("Cuenta creada. Revisa tu correo si tu proyecto requiere confirmación de email.");
       }
     } catch (err: any) {
-      setMsg(err?.message ?? "No se pudo completar la acción.");
+      setMsg(toErrorMessage(err));
     } finally {
       setLoading(false);
     }

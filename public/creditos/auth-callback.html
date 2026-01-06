@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Autenticación — CPG</title>
+  <link rel="stylesheet" href="./styles.css?v=2" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <!-- Credenciales Supabase (inyectadas desde Next.js) -->
+  <script src="/creditos/env"></script>
+</head>
+<body style="max-width:520px;margin:40px auto;padding:16px">
+  <h1>Autenticación</h1>
+  <div id="view-verify">
+    <p>Procesando enlace…</p>
+  </div>
+
+  <div id="view-reset" style="display:none">
+    <h2>Restablecer contraseña</h2>
+    <p>Ingresa tu nueva contraseña:</p>
+    <input type="password" id="newPass" placeholder="Nueva contraseña" />
+    <div style="margin-top:8px">
+      <button id="doUpdate" class="btn primary" type="button">Actualizar contraseña</button>
+      <span class="muted" id="state">—</span>
+    </div>
+  </div>
+
+  <script>
+    (async ()=>{
+      const sb = window.supabase.createClient(window.SB_URL, window.SB_KEY);
+      // Supabase añade en el hash parámetros que indican el tipo de acción
+      const hash = location.hash || '';
+      const params = new URLSearchParams(hash.replace(/^#/, ''));
+      const type = params.get('type'); // 'recovery' (reset) o 'signup' (verify)
+
+      if (type === 'recovery') {
+        // Mostrar UI para cambiar contraseña
+        document.getElementById('view-verify').style.display='none';
+        document.getElementById('view-reset').style.display='block';
+
+        document.getElementById('doUpdate').onclick = async ()=>{
+          const np = document.getElementById('newPass').value || '';
+          document.getElementById('state').textContent = 'Actualizando…';
+          const { error } = await sb.auth.updateUser({ password: np });
+          if(error){ document.getElementById('state').textContent = 'Error: '+error.message; return; }
+          document.getElementById('state').textContent = 'Contraseña actualizada. Redirigiendo…';
+          setTimeout(()=> location.href = '/creditos/index.html', 1200);
+        };
+      } else {
+        // Verificación de email
+        // Con solo abrir el enlace, Supabase valida la sesión; redirigimos al inicio
+        setTimeout(()=> location.href = '/creditos/index.html', 1000);
+      }
+    })();
+  </script>
+</body>
+</html>

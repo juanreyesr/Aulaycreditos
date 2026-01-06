@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verificación de Constancia — CPG</title>
+
+  <link rel="stylesheet" href="./styles.css?v=2" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" defer></script>
+
+  <!-- Credenciales Supabase (inyectadas desde Next.js) -->
+  <script src="/creditos/env" defer></script>
+
+  <script src="./verificar.js?v=2" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="./assets/Logo-cpg.png" alt="Colegio de Psicólogos de Guatemala" class="logo-img" />
+      <h1>Verificación de Constancia</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <p class="help">Puedes escanear el QR o verificar ingresando manualmente el <strong>correlativo</strong> y el <strong>hash</strong> de la constancia.</p>
+
+      <form id="verifyForm" class="grid" style="grid-template-columns:1fr 1fr; gap:12px;">
+        <label>Correlativo
+          <input type="text" id="vc" placeholder="CPG-YYYYMM-0001" />
+        </label>
+        <label>Hash
+          <input type="text" id="vh" placeholder="hash en la constancia" />
+        </label>
+        <div class="actions" style="grid-column:1 / -1">
+          <button class="btn primary" id="doVerify" type="submit">Verificar</button>
+          <button class="btn" id="useQuery" type="button">Usar parámetros de la URL</button>
+        </div>
+      </form>
+
+      <div id="result" class="table-wrap" style="padding:12px">Ingresa datos y presiona “Verificar”.</div>
+
+      <div class="actions" style="margin-top:12px">
+        <a class="btn" href="./index.html">Volver al registro</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <small>© 2025 — Verificación pública de constancias.</small>
+  </footer>
+</body>
+</html>

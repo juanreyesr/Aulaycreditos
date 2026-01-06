@@ -1,30 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { DEFAULT_CATEGORIES, slugify } from "@/lib/categories";
 
 function jsonError(status: number, message: string, extra?: Record<string, unknown>) {
   return NextResponse.json({ ok: false, error: message, ...(extra ?? {}) }, { status });
 }
-
-function slugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-const DEFAULT_CATEGORIES = [
-  "Psicología clínica",
-  "Neurocientífico",
-  "Educativa",
-  "Deportiva",
-  "Psicología social",
-  "Psicometría",
-];
 
 export async function POST(req: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

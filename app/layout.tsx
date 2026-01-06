@@ -1,4 +1,5 @@
 import "./globals.css";
+import Script from "next/script";
 import Navbar from "@/components/Navbar";
 
 export const metadata = {
@@ -7,9 +8,18 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const sbKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    "";
+
   return (
     <html lang="es">
       <body>
+        <Script id="supabase-env" strategy="beforeInteractive">
+          {`window.SB_URL = window.SB_URL || ${JSON.stringify(sbUrl)}; window.SB_KEY = window.SB_KEY || ${JSON.stringify(sbKey)};`}
+        </Script>
         <Navbar />
         <main className="mx-auto max-w-6xl px-4 pb-20">
           {children}

@@ -24,6 +24,9 @@ export default function AuthForm() {
 
   function toErrorMessage(err: any) {
     const base = err?.message ?? "No se pudo completar la acción.";
+    if (base === "Failed to fetch") {
+      return "No se pudo contactar Supabase. Verifica NEXT_PUBLIC_SUPABASE_URL (usa https) y que no haya bloqueos de red.";
+    }
     const extra = [err?.details, err?.hint, err?.code].filter(Boolean).join(" | ");
     return extra ? `${base} (${extra})` : base;
   }

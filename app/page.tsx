@@ -1,11 +1,20 @@
 import Hero from "@/components/Hero";
 import Row, { type CourseCard } from "@/components/Row";
 import { createClient } from "@/lib/supabase/server";
+import { seedDefaultCategories } from "@/lib/seedDefaultCategories";
 
 type Category = { id: string; name: string; slug: string | null };
 
 export default async function HomePage() {
   const supabase = createClient();
+
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      await seedDefaultCategories();
+    } catch (e) {
+      console.error("No se pudieron sembrar categorías predeterminadas en la portada:", e);
+    }
+  }
 
   const { data: categories } = await supabase
     .from("categories")

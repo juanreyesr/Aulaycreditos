@@ -7,7 +7,7 @@ export default function Hero() {
       <div className="relative p-8 md:p-10">
         <div className="text-xs uppercase tracking-[0.25em] text-white/60">Colegio de Psicólogos de Guatemala</div>
         <h1 className="mt-3 text-3xl md:text-4xl font-semibold leading-tight">
-          Aula Virtual estilo “Netflix” para capacitación y certificación
+          Aula virtual para capacitación y certificación
         </h1>
         <p className="mt-3 max-w-2xl text-sm md:text-base text-white/70">
           Explora videos por categoría, revisa los recién añadidos y realiza evaluaciones autocorregibles.

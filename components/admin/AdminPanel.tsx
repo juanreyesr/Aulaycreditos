@@ -71,14 +71,12 @@ export default function AdminPanel() {
 
   async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
+    return new Promise<T>((resolve, reject) => {
       timer = setTimeout(() => reject(new Error(message)), ms);
-    });
-    try {
-      return await Promise.race([promise, timeout]) as T;
-    } finally {
+      promise.then(resolve, reject);
+    }).finally(() => {
       if (timer) clearTimeout(timer);
-    }
+    });
   }
 
   async function refresh() {

@@ -69,6 +69,18 @@ export default function AdminPanel() {
   const selectedQuiz = useMemo(() => quizzes.find((q) => q.course_id === selectedCourseId) ?? null, [quizzes, selectedCourseId]);
   const [questions, setQuestions] = useState<any[]>([]);
 
+  async function withTimeout<T>(promise: Promise<T>, ms: number, message: string) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async function refresh() {
     setMsg(null);
     const [
@@ -77,17 +89,21 @@ export default function AdminPanel() {
       { data: qz, error: quizzesError },
       { data: cs, error: settingsError },
       { data: certs, error: certsError },
-    ] = await Promise.all([
-      supabase.from("categories").select("*").order("sort_order", { ascending: true }),
-      supabase.from("courses").select("*").order("created_at", { ascending: false }),
-      supabase.from("quizzes").select("*"),
-      supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
-      supabase
-        .from("certificates")
-        .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
-        .order("issued_at", { ascending: false })
-        .limit(50),
-    ]);
+    ] = await withTimeout(
+      Promise.all([
+        supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+        supabase.from("courses").select("*").order("created_at", { ascending: false }),
+        supabase.from("quizzes").select("*"),
+        supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
+        supabase
+          .from("certificates")
+          .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
+          .order("issued_at", { ascending: false })
+          .limit(50),
+      ]),
+      10000,
+      "Tiempo de espera al recargar datos."
+    );
 
     const firstError = catsError || coursesError || quizzesError || settingsError || certsError;
     if (firstError) {
@@ -124,14 +140,18 @@ export default function AdminPanel() {
     try {
       const parsed = CategorySchema.parse(catForm);
       const slug = parsed.slug?.trim() ? parsed.slug!.trim() : parsed.name.toLowerCase().replace(/\s+/g, "-");
-      const { error } = await supabase.from("categories").insert({
-        name: parsed.name.trim(),
-        slug,
-        sort_order: parsed.sort_order ?? 1,
-      });
+      const { error } = await withTimeout(
+        supabase.from("categories").insert({
+          name: parsed.name.trim(),
+          slug,
+          sort_order: parsed.sort_order ?? 1,
+        }),
+        10000,
+        "Tiempo de espera creando la categoría."
+      );
       if (error) throw error;
       setCatForm({ name: "", slug: "", sort_order: (parsed.sort_order ?? 1) + 1 });
-      await refresh();
+      await withTimeout(refresh(), 10000, "Tiempo de espera recargando datos.");
       setMsg("Categoría creada.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear la categoría.");
@@ -145,18 +165,22 @@ export default function AdminPanel() {
     try {
       const parsed = CourseSchema.parse(courseForm);
       const youtube_video_id = parsed.youtube_url ? extractYouTubeVideoId(parsed.youtube_url) : null;
-      const { error } = await supabase.from("courses").insert({
-        title: parsed.title.trim(),
-        description: parsed.description?.trim() || null,
-        category_id: parsed.category_id || null,
-        youtube_url: parsed.youtube_url || null,
-        youtube_video_id,
-        cover_image_url: parsed.cover_image_url || null,
-        published: parsed.published ?? true,
-      });
+      const { error } = await withTimeout(
+        supabase.from("courses").insert({
+          title: parsed.title.trim(),
+          description: parsed.description?.trim() || null,
+          category_id: parsed.category_id || null,
+          youtube_url: parsed.youtube_url || null,
+          youtube_video_id,
+          cover_image_url: parsed.cover_image_url || null,
+          published: parsed.published ?? true,
+        }),
+        10000,
+        "Tiempo de espera creando el video/curso."
+      );
       if (error) throw error;
       setCourseForm({ title: "", description: "", category_id: "", youtube_url: "", cover_image_url: "", published: true });
-      await refresh();
+      await withTimeout(refresh(), 10000, "Tiempo de espera recargando datos.");
       setMsg("Video/curso creado.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear el video/curso.");

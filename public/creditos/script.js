@@ -329,7 +329,9 @@ authBtn?.addEventListener('click', async ()=>{
   try {
     ({ data: s } = await withTimeout(sb.auth.getSession(), 8000, 'Tiempo de espera consultando la sesión.'));
   } catch (e) {
-    showToast('No se pudo consultar la sesión: ' + sbErrMsg(e), 'error');
+    console.warn('No se pudo consultar la sesión:', e);
+    openModal(authModal);
+    if (authState) authState.textContent = 'No se pudo validar la sesión. Intenta iniciar sesión nuevamente.';
     return;
   }
 
@@ -1272,7 +1274,7 @@ async function getQrDataUrl(text, size=96){
     }
   } catch (e) {
     if(authBtn) authBtn.textContent='Iniciar sesión';
-    showToast('No se pudo consultar la sesión: ' + sbErrMsg(e), 'error');
+    console.warn('No se pudo consultar la sesión:', e);
   }
 })();
 loadAndRender();

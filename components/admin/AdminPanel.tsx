@@ -81,38 +81,42 @@ export default function AdminPanel() {
 
   async function refresh() {
     setMsg(null);
-    const [
-      { data: cats, error: catsError },
-      { data: crs, error: coursesError },
-      { data: qz, error: quizzesError },
-      { data: cs, error: settingsError },
-      { data: certs, error: certsError },
-    ] = await withTimeout(
-      Promise.all([
-        supabase.from("categories").select("*").order("sort_order", { ascending: true }),
-        supabase.from("courses").select("*").order("created_at", { ascending: false }),
-        supabase.from("quizzes").select("*"),
-        supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
-        supabase
-          .from("certificates")
-          .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
-          .order("issued_at", { ascending: false })
-          .limit(50),
-      ]),
-      10000,
-      "Tiempo de espera al recargar datos."
-    );
+    try {
+      const [
+        { data: cats, error: catsError },
+        { data: crs, error: coursesError },
+        { data: qz, error: quizzesError },
+        { data: cs, error: settingsError },
+        { data: certs, error: certsError },
+      ] = await withTimeout(
+        Promise.all([
+          supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+          supabase.from("courses").select("*").order("created_at", { ascending: false }),
+          supabase.from("quizzes").select("*"),
+          supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
+          supabase
+            .from("certificates")
+            .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
+            .order("issued_at", { ascending: false })
+            .limit(50),
+        ]),
+        20000,
+        "Tiempo de espera al recargar datos."
+      );
 
-    const firstError = catsError || coursesError || quizzesError || settingsError || certsError;
-    if (firstError) {
-      setMsg(firstError.message);
+      const firstError = catsError || coursesError || quizzesError || settingsError || certsError;
+      if (firstError) {
+        setMsg(firstError.message);
+      }
+
+      if (cats) setCategories(cats as any);
+      if (crs) setCourses(crs as any);
+      if (qz) setQuizzes(qz as any);
+      if (typeof cs !== "undefined") setCertSettings(cs ?? null);
+      if (certs) setCertificates(certs as any[]);
+    } catch (e: any) {
+      setMsg(e?.message ?? "No se pudo recargar la información.");
     }
-
-    setCategories((cats ?? []) as any);
-    setCourses((crs ?? []) as any);
-    setQuizzes((qz ?? []) as any);
-    setCertSettings(cs ?? null);
-    setCertificates((certs ?? []) as any[]);
   }
 
   useEffect(() => {
@@ -144,12 +148,12 @@ export default function AdminPanel() {
           slug,
           sort_order: parsed.sort_order ?? 1,
         }),
-        10000,
+        20000,
         "Tiempo de espera creando la categoría."
       );
       if (error) throw error;
       setCatForm({ name: "", slug: "", sort_order: (parsed.sort_order ?? 1) + 1 });
-      await withTimeout(refresh(), 10000, "Tiempo de espera recargando datos.");
+      await withTimeout(refresh(), 20000, "Tiempo de espera recargando datos.");
       setMsg("Categoría creada.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear la categoría.");
@@ -173,12 +177,12 @@ export default function AdminPanel() {
           cover_image_url: parsed.cover_image_url || null,
           published: parsed.published ?? true,
         }),
-        10000,
+        20000,
         "Tiempo de espera creando el video/curso."
       );
       if (error) throw error;
       setCourseForm({ title: "", description: "", category_id: "", youtube_url: "", cover_image_url: "", published: true });
-      await withTimeout(refresh(), 10000, "Tiempo de espera recargando datos.");
+      await withTimeout(refresh(), 20000, "Tiempo de espera recargando datos.");
       setMsg("Video/curso creado.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear el video/curso.");

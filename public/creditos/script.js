@@ -59,6 +59,13 @@ function showToast(msg, type="info"){
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'), 3200);
 }
+function withTimeout(promise, ms, message){
+  let timer;
+  const timeout = new Promise((_, reject)=>{
+    timer = setTimeout(()=> reject(new Error(message || 'Tiempo de espera agotado.')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(()=> timer && clearTimeout(timer));
+}
 function phoneValidGT(v){ return /^(?:\+?502)?\s?\d{8}$/.test(v.trim()); }
 function withinFiveYears(dateStr){
   const d=new Date(dateStr), now=new Date();
@@ -318,7 +325,13 @@ authBtn?.addEventListener('click', async ()=>{
   const sb = getSupabaseClient();
   if(!sb){ showToast('No se pudo inicializar autenticación (Supabase).', 'error'); return; }
 
-  const { data: s } = await sb.auth.getSession();
+  let s;
+  try {
+    ({ data: s } = await withTimeout(sb.auth.getSession(), 8000, 'Tiempo de espera consultando la sesión.'));
+  } catch (e) {
+    showToast('No se pudo consultar la sesión: ' + sbErrMsg(e), 'error');
+    return;
+  }
 
   // Con sesión activa: cerrar sesión
   if (s?.session?.user) {
@@ -326,7 +339,13 @@ authBtn?.addEventListener('click', async ()=>{
     if(!ok) return;
 
     const userId = s.session.user.id;
-    const { error } = await sb.auth.signOut();
+    let error;
+    try {
+      ({ error } = await withTimeout(sb.auth.signOut(), 8000, 'Tiempo de espera cerrando sesión.'));
+    } catch (e) {
+      showToast('No se pudo cerrar sesión: ' + sbErrMsg(e), 'error');
+      return;
+    }
     if(error){ showToast('No se pudo cerrar sesión: ' + sbErrMsg(error), 'error'); return; }
 
     // Para uso compartido: limpiamos datos guardados del usuario saliente
@@ -360,7 +379,17 @@ doSignup?.addEventListener('click', async ()=>{
   const email = (authEmail?.value||'').trim();
   const password = authPass?.value || '';
   const redirectTo = `${location.origin}/auth-callback.html`;
-  const { error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } });
+  let error;
+  try {
+    ({ error } = await withTimeout(
+      sb.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } }),
+      10000,
+      'Tiempo de espera creando cuenta.'
+    ));
+  } catch (e) {
+    authState.textContent = 'Error: ' + sbErrMsg(e);
+    return;
+  }
   if(error){ authState.textContent='Error: '+sbErrMsg(error); return; }
   authState.textContent='Ya ha sido creada tu cuenta, pueden pulsar el botón -Entrar-';
 });
@@ -369,10 +398,20 @@ doLogin?.addEventListener('click', async ()=>{
   const sb = getSupabaseClient();
   if(!sb){ showToast('Supabase no disponible.', 'error'); return; }
   authState.textContent = 'Ingresando...';
-  const { error } = await sb.auth.signInWithPassword({
-    email: (authEmail?.value||'').trim(),
-    password: authPass?.value || ''
-  });
+  let error;
+  try {
+    ({ error } = await withTimeout(
+      sb.auth.signInWithPassword({
+        email: (authEmail?.value||'').trim(),
+        password: authPass?.value || ''
+      }),
+      10000,
+      'Tiempo de espera iniciando sesión.'
+    ));
+  } catch (e) {
+    authState.textContent = 'Error: ' + sbErrMsg(e);
+    return;
+  }
   if(error){ authState.textContent='Error: '+sbErrMsg(error); return; }
   authState.textContent='OK';
   closeModal(authModal);
@@ -385,13 +424,23 @@ doResetPassword?.addEventListener('click', async ()=>{
   if(!email){ showToast('Escriba su correo en el campo Email y vuelva a pulsar.', 'warn'); return; }
   authState.textContent = 'Enviando enlace...';
   const redirectTo = `${location.origin}/auth-callback.html`;
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+  let error;
+  try {
+    ({ error } = await withTimeout(
+      sb.auth.resetPasswordForEmail(email, { redirectTo }),
+      10000,
+      'Tiempo de espera enviando enlace.'
+    ));
+  } catch (e) {
+    authState.textContent = 'Error: ' + sbErrMsg(e);
+    return;
+  }
   if(error){ authState.textContent = 'Error: '+sbErrMsg(error); return; }
   authState.textContent = 'Te enviamos un enlace para restablecer tu contraseña.';
 });
 
 getSupabaseClient()?.auth.onAuthStateChange(async (_evt, session)=>{
-  if(authBtn) authBtn.textContent = session?.user ? 'Mi sesión' : 'Iniciar sesión';
+  if(authBtn) authBtn.textContent = session?.user ? 'Cerrar sesión' : 'Iniciar sesión';
 });
 
 /* =======================================================
@@ -638,7 +687,17 @@ superLogin?.addEventListener('click', async ()=>{
 
   const { data: s } = await sb.auth.getSession();
   if(!s?.session){
-    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    let error;
+    try {
+      ({ error } = await withTimeout(
+        sb.auth.signInWithPassword({ email, password: pass }),
+        10000,
+        'Tiempo de espera iniciando sesión.'
+      ));
+    } catch (e) {
+      adminState.textContent = 'Error al iniciar sesión: ' + sbErrMsg(e);
+      return;
+    }
     if(error){ adminState.textContent = 'Error al iniciar sesión: '+sbErrMsg(error); return; }
   }
 
@@ -1204,11 +1263,16 @@ async function getQrDataUrl(text, size=96){
 (async function initAuthButton(){
   const sb = getSupabaseClient();
   if(!sb){ if(authBtn) authBtn.textContent='Iniciar sesión'; return; }
-  const { data: s } = await sb.auth.getSession();
-  if(authBtn) authBtn.textContent = s?.session?.user ? 'Cerrar sesión' : 'Iniciar sesión';
-  if (s?.session?.user) {
-    try { precargarDesdeLocalStorage(s.session.user.id); } catch {}
-    try { await precargarDatosDesdeUltimoRegistro(s.session.user.id); } catch {}
+  try {
+    const { data: s } = await withTimeout(sb.auth.getSession(), 8000, 'Tiempo de espera consultando sesión.');
+    if(authBtn) authBtn.textContent = s?.session?.user ? 'Cerrar sesión' : 'Iniciar sesión';
+    if (s?.session?.user) {
+      try { precargarDesdeLocalStorage(s.session.user.id); } catch {}
+      try { await precargarDatosDesdeUltimoRegistro(s.session.user.id); } catch {}
+    }
+  } catch (e) {
+    if(authBtn) authBtn.textContent='Iniciar sesión';
+    showToast('No se pudo consultar la sesión: ' + sbErrMsg(e), 'error');
   }
 })();
 loadAndRender();

@@ -75,7 +75,7 @@ export default function AdminPanel() {
       timer = setTimeout(() => reject(new Error(message)), ms);
     });
     try {
-      return await Promise.race<T | never>([promise, timeout]);
+      return await Promise.race([promise, timeout]) as T;
     } finally {
       if (timer) clearTimeout(timer);
     }

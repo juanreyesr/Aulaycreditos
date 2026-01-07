@@ -20,18 +20,23 @@ type Course = {
 };
 type Quiz = { id: string; course_id: string; is_enabled: boolean; pass_percent: number };
 
+const emptyToUndefined = (value: unknown) => {
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+};
+
 const CategorySchema = z.object({
   name: z.string().min(2, "Nombre requerido"),
-  slug: z.string().optional(),
+  slug: z.preprocess(emptyToUndefined, z.string().optional()),
   sort_order: z.coerce.number().int().optional(),
 });
 
 const CourseSchema = z.object({
   title: z.string().min(3, "Título requerido"),
   description: z.string().optional(),
-  category_id: z.string().uuid().optional(),
-  youtube_url: z.string().url("URL inválida").optional(),
-  cover_image_url: z.string().url("URL inválida").optional(),
+  category_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  youtube_url: z.preprocess(emptyToUndefined, z.string().url("URL inválida").optional()),
+  cover_image_url: z.preprocess(emptyToUndefined, z.string().url("URL inválida").optional()),
   published: z.boolean().optional(),
 });
 
@@ -66,21 +71,34 @@ export default function AdminPanel() {
 
   async function refresh() {
     setMsg(null);
-    const { data: cats } = await supabase.from("categories").select("*").order("sort_order", { ascending: true });
-    const { data: crs } = await supabase.from("courses").select("*").order("created_at", { ascending: false });
-    const { data: qz } = await supabase.from("quizzes").select("*");
+    const [
+      { data: cats, error: catsError },
+      { data: crs, error: coursesError },
+      { data: qz, error: quizzesError },
+      { data: cs, error: settingsError },
+      { data: certs, error: certsError },
+    ] = await Promise.all([
+      supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+      supabase.from("courses").select("*").order("created_at", { ascending: false }),
+      supabase.from("quizzes").select("*"),
+      supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
+      supabase
+        .from("certificates")
+        .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
+        .order("issued_at", { ascending: false })
+        .limit(50),
+    ]);
+
+    const firstError = catsError || coursesError || quizzesError || settingsError || certsError;
+    if (firstError) {
+      setMsg(firstError.message);
+    }
+
     setCategories((cats ?? []) as any);
     setCourses((crs ?? []) as any);
     setQuizzes((qz ?? []) as any);
-const { data: cs } = await supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle();
-const { data: certs } = await supabase
-  .from("certificates")
-  .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
-  .order("issued_at", { ascending: false })
-  .limit(50);
-setCertSettings(cs ?? null);
-setCertificates((certs ?? []) as any[]);
-
+    setCertSettings(cs ?? null);
+    setCertificates((certs ?? []) as any[]);
   }
 
   useEffect(() => {
@@ -563,6 +581,36 @@ setCertificates((certs ?? []) as any[]);
       {!certSettings && (
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-white/60">
           No se encontró configuración. Verifica que ejecutaste el SQL v2.
+          <div className="mt-3">
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setMsg(null);
+                try {
+                  const { error } = await supabase.from("certificate_settings").insert({
+                    id: 1,
+                    institution_name: "Colegio de Profesionales",
+                    header_line: "Certificado",
+                    signer1_name: "Firmante 1",
+                    signer1_title: "Cargo 1",
+                    signer2_name: "Firmante 2",
+                    signer2_title: "Cargo 2",
+                  });
+                  if (error) throw error;
+                  await refresh();
+                  setMsg("Configuración inicial creada.");
+                } catch (e: any) {
+                  setMsg(e?.message ?? "No se pudo crear la configuración inicial.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded-full bg-cpgRed px-5 py-2 text-sm hover:opacity-90 disabled:opacity-60"
+            >
+              Crear configuración inicial
+            </button>
+          </div>
         </div>
       )}
 

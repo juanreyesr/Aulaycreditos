@@ -69,11 +69,11 @@ export default function AdminPanel() {
   const selectedQuiz = useMemo(() => quizzes.find((q) => q.course_id === selectedCourseId) ?? null, [quizzes, selectedCourseId]);
   const [questions, setQuestions] = useState<any[]>([]);
 
-  async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  async function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     return new Promise<T>((resolve, reject) => {
       timer = setTimeout(() => reject(new Error(message)), ms);
-      promise.then(resolve, reject);
+      Promise.resolve(promise).then(resolve, reject);
     }).finally(() => {
       if (timer) clearTimeout(timer);
     });

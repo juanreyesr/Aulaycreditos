@@ -20,18 +20,23 @@ type Course = {
 };
 type Quiz = { id: string; course_id: string; is_enabled: boolean; pass_percent: number };
 
+const emptyToUndefined = (value: unknown) => {
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+};
+
 const CategorySchema = z.object({
   name: z.string().min(2, "Nombre requerido"),
-  slug: z.string().optional(),
+  slug: z.preprocess(emptyToUndefined, z.string().optional()),
   sort_order: z.coerce.number().int().optional(),
 });
 
 const CourseSchema = z.object({
   title: z.string().min(3, "Título requerido"),
   description: z.string().optional(),
-  category_id: z.string().uuid().optional(),
-  youtube_url: z.string().url("URL inválida").optional(),
-  cover_image_url: z.string().url("URL inválida").optional(),
+  category_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  youtube_url: z.preprocess(emptyToUndefined, z.string().url("URL inválida").optional()),
+  cover_image_url: z.preprocess(emptyToUndefined, z.string().url("URL inválida").optional()),
   published: z.boolean().optional(),
 });
 
@@ -64,23 +69,54 @@ export default function AdminPanel() {
   const selectedQuiz = useMemo(() => quizzes.find((q) => q.course_id === selectedCourseId) ?? null, [quizzes, selectedCourseId]);
   const [questions, setQuestions] = useState<any[]>([]);
 
+  async function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return new Promise<T>((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms);
+      Promise.resolve(promise).then(resolve, reject);
+    }).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
+  }
+
   async function refresh() {
     setMsg(null);
-    const { data: cats } = await supabase.from("categories").select("*").order("sort_order", { ascending: true });
-    const { data: crs } = await supabase.from("courses").select("*").order("created_at", { ascending: false });
-    const { data: qz } = await supabase.from("quizzes").select("*");
-    setCategories((cats ?? []) as any);
-    setCourses((crs ?? []) as any);
-    setQuizzes((qz ?? []) as any);
-const { data: cs } = await supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle();
-const { data: certs } = await supabase
-  .from("certificates")
-  .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
-  .order("issued_at", { ascending: false })
-  .limit(50);
-setCertSettings(cs ?? null);
-setCertificates((certs ?? []) as any[]);
+    try {
+      const [
+        { data: cats, error: catsError },
+        { data: crs, error: coursesError },
+        { data: qz, error: quizzesError },
+        { data: cs, error: settingsError },
+        { data: certs, error: certsError },
+      ] = await withTimeout(
+        Promise.all([
+          supabase.from("categories").select("*").order("sort_order", { ascending: true }),
+          supabase.from("courses").select("*").order("created_at", { ascending: false }),
+          supabase.from("quizzes").select("*"),
+          supabase.from("certificate_settings").select("*").eq("id", 1).maybeSingle(),
+          supabase
+            .from("certificates")
+            .select("attempt_id,folio_code,full_name,colegiado,course_title,issued_at,verify_code")
+            .order("issued_at", { ascending: false })
+            .limit(50),
+        ]),
+        20000,
+        "Tiempo de espera al recargar datos."
+      );
 
+      const firstError = catsError || coursesError || quizzesError || settingsError || certsError;
+      if (firstError) {
+        setMsg(firstError.message);
+      }
+
+      if (cats) setCategories(cats as any);
+      if (crs) setCourses(crs as any);
+      if (qz) setQuizzes(qz as any);
+      if (typeof cs !== "undefined") setCertSettings(cs ?? null);
+      if (certs) setCertificates(certs as any[]);
+    } catch (e: any) {
+      setMsg(e?.message ?? "No se pudo recargar la información.");
+    }
   }
 
   useEffect(() => {
@@ -106,14 +142,18 @@ setCertificates((certs ?? []) as any[]);
     try {
       const parsed = CategorySchema.parse(catForm);
       const slug = parsed.slug?.trim() ? parsed.slug!.trim() : parsed.name.toLowerCase().replace(/\s+/g, "-");
-      const { error } = await supabase.from("categories").insert({
-        name: parsed.name.trim(),
-        slug,
-        sort_order: parsed.sort_order ?? 1,
-      });
+      const { error } = await withTimeout(
+        supabase.from("categories").insert({
+          name: parsed.name.trim(),
+          slug,
+          sort_order: parsed.sort_order ?? 1,
+        }),
+        20000,
+        "Tiempo de espera creando la categoría."
+      );
       if (error) throw error;
       setCatForm({ name: "", slug: "", sort_order: (parsed.sort_order ?? 1) + 1 });
-      await refresh();
+      await withTimeout(refresh(), 20000, "Tiempo de espera recargando datos.");
       setMsg("Categoría creada.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear la categoría.");
@@ -127,18 +167,22 @@ setCertificates((certs ?? []) as any[]);
     try {
       const parsed = CourseSchema.parse(courseForm);
       const youtube_video_id = parsed.youtube_url ? extractYouTubeVideoId(parsed.youtube_url) : null;
-      const { error } = await supabase.from("courses").insert({
-        title: parsed.title.trim(),
-        description: parsed.description?.trim() || null,
-        category_id: parsed.category_id || null,
-        youtube_url: parsed.youtube_url || null,
-        youtube_video_id,
-        cover_image_url: parsed.cover_image_url || null,
-        published: parsed.published ?? true,
-      });
+      const { error } = await withTimeout(
+        supabase.from("courses").insert({
+          title: parsed.title.trim(),
+          description: parsed.description?.trim() || null,
+          category_id: parsed.category_id || null,
+          youtube_url: parsed.youtube_url || null,
+          youtube_video_id,
+          cover_image_url: parsed.cover_image_url || null,
+          published: parsed.published ?? true,
+        }),
+        20000,
+        "Tiempo de espera creando el video/curso."
+      );
       if (error) throw error;
       setCourseForm({ title: "", description: "", category_id: "", youtube_url: "", cover_image_url: "", published: true });
-      await refresh();
+      await withTimeout(refresh(), 20000, "Tiempo de espera recargando datos.");
       setMsg("Video/curso creado.");
     } catch (e: any) {
       setMsg(e?.message ?? "No se pudo crear el video/curso.");
@@ -563,6 +607,36 @@ setCertificates((certs ?? []) as any[]);
       {!certSettings && (
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-white/60">
           No se encontró configuración. Verifica que ejecutaste el SQL v2.
+          <div className="mt-3">
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setMsg(null);
+                try {
+                  const { error } = await supabase.from("certificate_settings").insert({
+                    id: 1,
+                    institution_name: "Colegio de Profesionales",
+                    header_line: "Certificado",
+                    signer1_name: "Firmante 1",
+                    signer1_title: "Cargo 1",
+                    signer2_name: "Firmante 2",
+                    signer2_title: "Cargo 2",
+                  });
+                  if (error) throw error;
+                  await refresh();
+                  setMsg("Configuración inicial creada.");
+                } catch (e: any) {
+                  setMsg(e?.message ?? "No se pudo crear la configuración inicial.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              className="rounded-full bg-cpgRed px-5 py-2 text-sm hover:opacity-90 disabled:opacity-60"
+            >
+              Crear configuración inicial
+            </button>
+          </div>
         </div>
       )}
 
